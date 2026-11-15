@@ -1,4 +1,4 @@
-name: Python and PostgreSQL verification
+name: Backend and Flutter verification
 
 on:
   push:
@@ -66,3 +66,32 @@ jobs:
 
       - name: Run complete test suite against PostgreSQL
         run: python -m pytest -q --tb=short
+
+  flutter:
+    name: Flutter analyze, format, and tests
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: client
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Set up Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.9"
+          cache: true
+
+      - name: Install Flutter dependencies
+        run: flutter pub get
+
+      - name: Verify Dart formatting
+        run: dart format --output=none --set-exit-if-changed lib test
+
+      - name: Run Flutter static analysis
+        run: flutter analyze
+
+      - name: Run Flutter test suite
+        run: flutter test
