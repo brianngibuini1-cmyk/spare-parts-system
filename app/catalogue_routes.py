@@ -139,6 +139,15 @@ def _visible_product(session: Session, product_id: uuid.UUID, context: AuthConte
     return product
 
 
+def _require_editable_product(product: Product, context: AuthContext) -> None:
+    if context.user.role != "owner" and product.submitted_by != context.user.id:
+        raise HTTPException(status_code=404, detail="Product not found.")
+    if context.user.role != "owner" and product.approval_status != "pending":
+        raise HTTPException(status_code=403, detail="Only your pending submissions can be edited.")
+    if product.approval_status == "rejected":
+        raise HTTPException(status_code=409, detail="Rejected products cannot be edited.")
+
+
 @router.get("/api/v1/attendants", tags=["users"])
 def list_attendants(
     _: AuthContext = Depends(require_owner), session: Session = Depends(get_session)
@@ -290,12 +299,7 @@ def update_product(
 ) -> dict:
     require_csrf(request, context)
     product = _owned_product(session, product_id)
-    if context.user.role != "owner" and product.submitted_by != context.user.id:
-        raise HTTPException(status_code=404, detail="Product not found.")
-    if context.user.role != "owner" and product.approval_status != "pending":
-        raise HTTPException(status_code=403, detail="Only your pending submissions can be edited.")
-    if product.approval_status == "rejected":
-        raise HTTPException(status_code=409, detail="Rejected products cannot be edited.")
+    _require_editable_product(product, context)
     changes = payload.model_dump(exclude_unset=True)
     if not changes:
         raise HTTPException(status_code=422, detail="Provide at least one product field to update.")
@@ -365,16 +369,13 @@ def upload_product_image(
     session: Session = Depends(get_session),
 ) -> dict:
     require_csrf(request, context)
-    product = _owned_product(session, product_id)
-    if not can_view_product(context, product) or (
-        context.user.role != "owner" and product.approval_status != "pending"
-    ):
-        raise HTTPException(status_code=404, detail="Product not found.")
-    if context.user.role != "owner" and product.submitted_by != context.user.id:
-        raise HTTPException(status_code=404, detail="Product not found.")
-    limit = request.app.state.settings.product_image_max_bytes
-    data = file.file.read(limit + 1)
-    file.file.close()
+    try:
+        product = _owned_product(session, product_id)
+        _require_editable_product(product, context)
+        limit = request.app.state.settings.product_image_max_bytes
+        data = file.file.read(limit + 1)
+    finally:
+        file.file.close()
     if len(data) > limit:
         raise HTTPException(status_code=413, detail="Image exceeds the configured upload limit.")
     try:

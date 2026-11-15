@@ -352,6 +352,163 @@ def test_attendant_cannot_retrieve_another_users_private_pending_image(owner_cli
         attendant.close()
 
 
+def test_owner_cannot_upload_or_replace_image_on_rejected_product(owner_client):
+    product_with_image = _create_product(owner_client, name="Rejected with image").json()
+    initial_upload = owner_client.post(
+        f"/api/v1/products/{product_with_image['id']}/image",
+        headers=_mutating_headers(owner_client),
+        files={"file": ("initial.png", _image_bytes("PNG"), "image/png")},
+    )
+    assert initial_upload.status_code == 200
+
+    with owner_client.app.state.session_factory() as session:
+        original_key = session.get(Product, UUID(product_with_image["id"])).image_key
+        assert original_key is not None
+
+    rejected_with_image = owner_client.post(
+        f"/api/v1/products/{product_with_image['id']}/reject",
+        headers=_mutating_headers(owner_client),
+        json={"reason": "Incorrect part specification."},
+    )
+    assert rejected_with_image.status_code == 200
+    assert rejected_with_image.json()["can_edit"] is False
+
+    patch_rejected = owner_client.patch(
+        f"/api/v1/products/{product_with_image['id']}",
+        headers=_mutating_headers(owner_client),
+        json={"name": "Edited after rejection"},
+    )
+    replace_rejected_image = owner_client.post(
+        f"/api/v1/products/{product_with_image['id']}/image",
+        headers=_mutating_headers(owner_client),
+        files={"file": ("replacement.jpg", _image_bytes("JPEG"), "image/jpeg")},
+    )
+    assert patch_rejected.status_code == 409
+    assert patch_rejected.json() == {"detail": "Rejected products cannot be edited."}
+    assert replace_rejected_image.status_code == 409
+    assert replace_rejected_image.json() == {"detail": "Rejected products cannot be edited."}
+
+    with owner_client.app.state.session_factory() as session:
+        stored = session.get(Product, UUID(product_with_image["id"]))
+        assert stored.image_key == original_key
+        assert stored.image_media_type == "image/png"
+        assert (
+            session.query(ProductEvent)
+            .filter_by(product_id=stored.id, event_type="image_updated")
+            .count()
+            == 1
+        )
+
+    product_without_image = _create_product(owner_client, name="Rejected without image").json()
+    rejected_without_image = owner_client.post(
+        f"/api/v1/products/{product_without_image['id']}/reject",
+        headers=_mutating_headers(owner_client),
+        json={"reason": "Discontinued part."},
+    )
+    assert rejected_without_image.status_code == 200
+
+    upload_after_reject = owner_client.post(
+        f"/api/v1/products/{product_without_image['id']}/image",
+        headers=_mutating_headers(owner_client),
+        files={"file": ("new.png", _image_bytes("PNG"), "image/png")},
+    )
+    assert upload_after_reject.status_code == 409
+    assert upload_after_reject.json() == {"detail": "Rejected products cannot be edited."}
+
+    with owner_client.app.state.session_factory() as session:
+        stored_empty = session.get(Product, UUID(product_without_image["id"]))
+        assert stored_empty.image_key is None
+        assert (
+            session.query(ProductEvent)
+            .filter_by(product_id=stored_empty.id, event_type="image_updated")
+            .count()
+            == 0
+        )
+
+
+def test_attendant_image_upload_authorization_matches_product_update_rules(owner_client):
+    attendant = _new_attendant_client(owner_client)
+    try:
+        own_pending = _create_product(attendant, name="Attendant pending part").json()
+        own_upload = attendant.post(
+            f"/api/v1/products/{own_pending['id']}/image",
+            headers=_mutating_headers(attendant),
+            files={"file": ("own.png", _image_bytes("PNG"), "image/png")},
+        )
+        assert own_upload.status_code == 200
+        assert own_upload.json()["can_edit"] is True
+
+        owner_approved = owner_client.post(
+            f"/api/v1/products/{own_pending['id']}/approve",
+            headers=_mutating_headers(owner_client),
+            json={"selling_price": "45.0000"},
+        )
+        assert owner_approved.status_code == 200
+
+        patch_own_approved = attendant.patch(
+            f"/api/v1/products/{own_pending['id']}",
+            headers=_mutating_headers(attendant),
+            json={"description": "Cannot edit after approval"},
+        )
+        upload_own_approved = attendant.post(
+            f"/api/v1/products/{own_pending['id']}/image",
+            headers=_mutating_headers(attendant),
+            files={"file": ("after-approve.jpg", _image_bytes("JPEG"), "image/jpeg")},
+        )
+        assert patch_own_approved.status_code == 403
+        assert patch_own_approved.json() == {"detail": "Only your pending submissions can be edited."}
+        assert upload_own_approved.status_code == 403
+        assert upload_own_approved.json() == {"detail": "Only your pending submissions can be edited."}
+
+        own_to_reject = _create_product(attendant, name="Attendant rejected part").json()
+        owner_rejected = owner_client.post(
+            f"/api/v1/products/{own_to_reject['id']}/reject",
+            headers=_mutating_headers(owner_client),
+            json={"reason": "Missing part number."},
+        )
+        assert owner_rejected.status_code == 200
+
+        patch_own_rejected = attendant.patch(
+            f"/api/v1/products/{own_to_reject['id']}",
+            headers=_mutating_headers(attendant),
+            json={"description": "Cannot edit after rejection"},
+        )
+        upload_own_rejected = attendant.post(
+            f"/api/v1/products/{own_to_reject['id']}/image",
+            headers=_mutating_headers(attendant),
+            files={"file": ("after-reject.png", _image_bytes("PNG"), "image/png")},
+        )
+        assert patch_own_rejected.status_code == 403
+        assert patch_own_rejected.json() == {"detail": "Only your pending submissions can be edited."}
+        assert upload_own_rejected.status_code == 403
+        assert upload_own_rejected.json() == {"detail": "Only your pending submissions can be edited."}
+
+        owner_pending = _create_product(owner_client, name="Owner pending part").json()
+        owner_approved_part = _create_product(owner_client, name="Owner approved part").json()
+        owner_client.post(
+            f"/api/v1/products/{owner_approved_part['id']}/approve",
+            headers=_mutating_headers(owner_client),
+            json={"selling_price": "99.0000"},
+        )
+        owner_rejected_part = _create_product(owner_client, name="Owner rejected part").json()
+        owner_client.post(
+            f"/api/v1/products/{owner_rejected_part['id']}/reject",
+            headers=_mutating_headers(owner_client),
+            json={"reason": "Owner rejected."},
+        )
+
+        for other_product in (owner_pending, owner_approved_part, owner_rejected_part):
+            upload_other = attendant.post(
+                f"/api/v1/products/{other_product['id']}/image",
+                headers=_mutating_headers(attendant),
+                files={"file": ("other.png", _image_bytes("PNG"), "image/png")},
+            )
+            assert upload_other.status_code == 404
+            assert upload_other.json() == {"detail": "Product not found."}
+    finally:
+        attendant.close()
+
+
 def test_product_and_attendant_writes_require_authentication(owner_client):
     anonymous = TestClient(owner_client.app, base_url="https://testserver")
     try:
