@@ -2,8 +2,12 @@
 
 ## Scope and decisions
 
-- Follow `docs/requirements.md` and the approved Python/FastAPI/PostgreSQL/SQLAlchemy/Alembic/HTML-CSS-JavaScript/Chart.js direction.
-- Preserve the single-shop, single-owner initial scope. Do not add native clients, React, accounting, M-PESA, paid APIs, or unapproved business rules.
+- Follow `docs/requirements.md` and the approved shared Flutter/Dart application plus Python/FastAPI/PostgreSQL/SQLAlchemy/Alembic backend direction.
+- Build one Flutter application for Windows, Android, and iOS. Do not create independent frontends, a WebView substitute, a React client, or direct database connections from clients.
+- Preserve the single-shop business scope and confirmed owner/attendant roles. Do not add accounting, M-PESA, offline synchronization, paid services, or unapproved business rules.
+- Keep browser templates and `/demo` distinct from the production Flutter clients. Flutter communicates through authenticated FastAPI APIs only.
+- Test Android staging before owner TestFlight distribution. Windows changes must retain keyboard/mouse support and consider printer compatibility without assuming a printer model.
+- iOS builds require macOS and Xcode; use an approved hosted macOS runner or Mac and never commit signing secrets.
 - Treat items marked unresolved in the documents as unresolved. Ask the owner or record an explicit decision before encoding them in behavior.
 - Do not deploy untested code, modify live infrastructure, or run destructive database actions without the required approval.
 

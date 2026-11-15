@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#102a43">
+    <title>Spare Parts Shop</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}">
+    <script src="{{ url_for('static', path='/navigation.js') }}" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Spare Parts Shop home">
+        <span class="brand-mark" aria-hidden="true">SP</span>
+        <span>Spare Parts Shop</span>
+      </a>
+      <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="primary-nav">
+        <span class="menu-icon" aria-hidden="true">☰</span>
+        <span class="visually-hidden">Toggle navigation</span>
+      </button>
+      <nav id="primary-nav" class="primary-nav" aria-label="Main navigation">
+        <a class="nav-link active" href="/" aria-current="page">Dashboard</a>
+        <a class="nav-link" href="/products">Products</a>
+        {% if user_role == 'owner' %}<a class="nav-link" href="/products/approvals">Approvals</a><a class="nav-link" href="/team">Attendants</a>{% endif %}
+        <a class="nav-link planned" href="#inventory" aria-disabled="true">Inventory <span>Planned</span></a>
+        <a class="nav-link planned" href="#sales" aria-disabled="true">Sales <span>Planned</span></a>
+        <a class="nav-link planned" href="#suppliers" aria-disabled="true">Suppliers <span>Planned</span></a>
+        <a class="nav-link planned" href="#reports" aria-disabled="true">Reports <span>Planned</span></a>
+      </nav>
+      <div class="account-placeholder" aria-label="Account area">{{ owner_login }} <button id="logout-button" type="button">Sign out</button></div>
+    </header>
+    <main id="main-content" class="content">
+      <div class="page-heading">
+        <div>
+          <p class="eyebrow">SHOP OVERVIEW</p>
+          <h1>Dashboard</h1>
+        </div>
+        <span class="status-pill">Foundation setup</span>
+      </div>
+      <section class="welcome-card" aria-labelledby="welcome-title">
+        <div class="welcome-icon" aria-hidden="true">✓</div>
+        <div>
+          <h2 id="welcome-title">Application foundation is ready</h2>
+          <p>This responsive shell is ready for approved shop workflows. No products, sales, or stock balances have been created.</p>
+          <a class="demo-launch" href="/demo">Open the interactive demonstration <span aria-hidden="true">→</span></a>
+        </div>
+      </section>
+      <section class="setup-grid" aria-label="Foundation status">
+        <article class="setup-card">
+          <p class="card-label">DATABASE</p>
+          <h2>Connection configured by environment</h2>
+          <p>Readiness is checked at <code>/health/ready</code>. No database credentials are shown in this interface.</p>
+        </article>
+        <article class="setup-card">
+          <p class="card-label">NEXT MILESTONE</p>
+          <h2>Authentication and audit</h2>
+          <p>Owner authentication is active. Operational business workflows remain unavailable until their policies are confirmed.</p>
+        </article>
+      </section>
+      <p class="scope-note">Business features remain unavailable until their policies are confirmed.</p>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en"><head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Product catalogue · Spare Parts Shop</title><link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/shop-api.js" defer></script><script src="/static/navigation.js" defer></script><script src="/static/catalogue.js" defer></script>
+</head><body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="topbar"><a class="brand" href="/"><span class="brand-mark">SP</span><span>Spare Parts Shop</span></a>
+    <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="primary-nav"><span aria-hidden="true">☰</span></button>
+    <nav id="primary-nav" class="primary-nav" aria-label="Main navigation"><a class="nav-link" href="/">Dashboard</a><a class="nav-link active" href="/products">Products</a>
+      {% if user_role == 'owner' %}<a class="nav-link" href="/products/approvals">Approval queue</a><a class="nav-link" href="/team">Attendants</a>{% endif %}</nav>
+    <div class="account-placeholder">{{ user_role|title }} <button id="logout-button" type="button">Sign out</button></div>
+  </header>
+  <main id="main-content" class="content catalogue-page" data-role="{{ user_role }}">
+    <div class="page-heading"><div><p class="eyebrow">PRODUCT CATALOGUE</p><h1>Products</h1><p class="subheading">Approved items are available to the shop. New submissions need owner approval.</p></div>
+      {% if user_role == 'owner' %}<a class="button button-light" href="/products/approvals">Review submissions</a>{% endif %}</div>
+    <div class="catalogue-grid">
+      <section class="panel product-form-panel" aria-labelledby="product-form-title"><h2 id="product-form-title">Register a product</h2>
+        <p class="muted">Every new product starts pending. The owner sets and approves its selling price.</p>
+        <form id="product-create-form">
+          <label>Product name <span aria-hidden="true">*</span><input name="name" required maxlength="200"></label>
+          <label>Description <textarea name="description" rows="3" maxlength="4000"></textarea></label>
+          <div class="form-row"><label>Category <input name="category" maxlength="100"></label><label>Manufacturer part number <input name="manufacturer_part_number" maxlength="128"></label></div>
+          <label>Product photograph <input id="product-image-input" name="image" type="file" accept="image/jpeg,image/png,image/webp"></label>
+          <img id="image-preview" class="image-preview" alt="Selected product image preview" hidden>
+          <p class="field-note">JPEG, PNG or WebP. Manufacturer part numbers may be shared by products.</p>
+          <button class="button button-primary" type="submit">Submit for approval</button><p id="product-form-message" class="form-message" role="status"></p>
+        </form>
+      </section>
+      <section class="panel product-list-panel" aria-labelledby="catalogue-list-title"><div class="panel-heading"><div><h2 id="catalogue-list-title">Catalogue</h2><p class="muted">Search by product name, reference, category or manufacturer part number.</p></div></div>
+        <div class="table-toolbar"><label class="search-box"><span aria-hidden="true">⌕</span><input id="product-search" type="search" placeholder="Search products" aria-label="Search products"></label>
+          <select id="product-status" aria-label="Filter product status"><option value="">Visible to me</option><option value="approved">Approved</option><option value="pending">Pending</option><option value="rejected">Rejected</option></select></div>
+        <p id="catalogue-message" class="form-message" role="status"></p><div id="product-list" class="product-list" aria-live="polite"></div>
+      </section>
+    </div>
+  </main>
+</body></html>

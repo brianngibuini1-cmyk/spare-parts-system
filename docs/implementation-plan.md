@@ -1,34 +1,35 @@
 # Implementation plan
 
-Milestones are sequenced so each can be reviewed and tested independently. Do not start a milestone that depends on an unresolved business rule until the owner decides it. No code, package installation, or deployment was performed as part of this architecture assignment.
+This plan implements the confirmed Windows, Android, and iOS Flutter clients around the existing FastAPI/PostgreSQL backend. The delivery remains gated by business rules listed in `client-decisions.md`. Do not implement sales, stock, tax, or payment behavior from the fictional browser demo.
 
-## Before implementation: decisions and setup
+## Decisions and readiness gates
 
-1. Resolve requirements marked as blocking in `requirements.md`: currency/tax/receipt rules; product identity and units; payment, pricing, returns/voids and stock shortage policy; purchasing/receiving lifecycle; adjustment controls; owner account recovery; reports; deployment and recovery objectives.
-2. Confirm cloud provider/region/domain/budget, environment ownership, staging approach, and who can access production.
-3. Create repository conventions, Python runtime target, dependency policy, local development instructions, and CI checks. Validate that runtime tooling is actually available before selecting versions.
+Resolve or explicitly defer before the dependent work: native API session transport/expiry; app environment and account ownership; printer model and receipt format; Windows installation/signing method; Apple Developer account and hosted macOS budget; currency/tax/payment/discount/credit/returns; stock shortage/opening balance/adjustment; dashboard definitions; backups and operational ownership. Decisions on platform hosting can proceed in parallel with backend feature work.
 
 ## Milestones
 
 | # | Milestone | Independently verifiable outcome |
 |---|---|---|
-| 1 | Application foundation | FastAPI app, configuration, structured safe logging, health checks, SQLAlchemy session setup, PostgreSQL local/dev configuration, Alembic baseline. Unit/integration checks for startup and database connectivity. |
-| 2 | Authentication and audit base | One-time owner bootstrap, secure login/logout/session handling, authorization dependency, audit event service. Checks for unauthenticated denial, session behavior, and audit recording. |
-| 3 | Products and suppliers | CRUD/search/deactivation with validation and history-safe behavior. API and UI checks on desktop/mobile layouts. |
-| 4 | Inventory ledger | Movement model, balance strategy/reconciliation, controlled correction flow after approval. Tests for atomic movement, permissions, and concurrent balance behavior. |
-| 5 | Purchasing and receiving | Draft/approved purchase workflow as decided; receipt posting creates ledger movement atomically and retries do not duplicate. |
-| 6 | Sales and checkout | Server-calculated pricing and totals, transactional stock issue, idempotency, approved payment and correction lifecycle. Test rollback, duplicate retry and concurrent checkout behavior. |
-| 7 | Receipts and sales history | Search/filter, immutable receipt view with print stylesheet and approved receipt content. Verify history and browser print layout. |
-| 8 | Dashboard and reports | Approved metrics, date ranges and inventory/sales reports; validate aggregation against known fixtures and responsive charts. |
-| 9 | Hardening and release readiness | Security review, accessibility/usability pass, dependency review, backup restore drill, migration/release rehearsal, production runbook, tested staging release. No deployment until code and procedures pass agreed checks and owner approves. |
+| 1 | API hardening for native clients | Add additive native session API using opaque revocable credentials, secure expiry and logout. Preserve owner rows and browser sessions. Test Android/Windows/iOS bearer authorization, session rotation/revocation, rate limiting and role authorization. |
+| 2 | Shared Flutter skeleton | Add one `client/` Flutter/Dart project with shared API, error, session and role navigation layers and Windows/Android/iOS targets. Validate Android and Windows builds, API environment separation, keyboard/touch navigation and no offline write queue. |
+| 3 | Android staging client | Produce installable staging APK/AAB according to test purpose. Test separate owner/attendant accounts, login, product registration, image picking/upload, refresh, expiry, logout, lost connectivity and server errors. Attach test evidence before owner beta work. |
+| 4 | Windows attendant application | Build installable Windows package with desktop catalogue/search, role-safe workflows, file image selection, keyboard/mouse support, connection handling and chosen distribution/update approach. Test printing only after printer model/interface is identified. |
+| 5 | iOS owner application | Use macOS/Xcode local or hosted runner to build/sign the shared Flutter target. Test owner dashboard, approvals/price setting, photo viewing, remote API access, secure storage and logout on iPhone. Submit to TestFlight after Android staging acceptance. |
+| 6 | Inventory ledger | After opening stock, adjustments, units and negative-stock decisions, implement ledger and balances. Test atomic writes, role policy, concurrency and reconciliation. |
+| 7 | Purchasing and receiving | After purchase lifecycle and supplier fields are confirmed, implement receiving with atomic stock movements and retry protection. |
+| 8 | Sales and checkout | After currency, tax, tender, credit, discounts, returns and shortage policy are decided, implement server-priced checkout and atomic stock issue. Test rollback, duplicates, concurrency, permission enforcement and audit. |
+| 9 | Receipts, history and reporting | Implement approved receipt content, printing path, history, date filters, metrics and exports. Verify against agreed fixtures and Windows printer. |
+| 10 | Production readiness | Security review, app signing/release process, dependency checks, monitoring, backup restore, migration rehearsal, staging acceptance and support runbook. Production release requires client approval. |
 
-## Verification policy
+## Test and release workflow
 
-For each milestone, add focused unit tests for domain rules, API integration tests against PostgreSQL where database semantics matter, and UI checks for key browser workflows. Include regression coverage for stock ledger invariants, transaction rollback, idempotency, permissions and audit. Run tests, formatting/type/lint checks selected by the project, inspect actual output, and review migrations/diffs before merging. This assignment added documents only; no software tests were applicable or run.
+- Keep development, staging and production API/database credentials separate. Staging contains synthetic data only.
+- Test in this order: API contract and authorization tests; Android developer staging; Windows shop-like environment; iOS staging/TestFlight beta.
+- Android/iOS are real installable app builds. No WebView wrapper and no production use of the unauthenticated fictional `/demo`.
+- Pin Flutter SDK and Dart constraints, dependencies and build toolchain once the Flutter project is initialized. Run formatting, static analysis, unit/widget tests, API integration tests, and platform build checks in CI.
+- Windows and Android artifacts can be built on Windows with their platform toolchains. iOS simulator/device archives require macOS and Xcode; configure a hosted macOS workflow and protected signing secrets.
+- Promote versioned client builds and API releases only after staging checks. Never put API secrets or signing keys in client source or binaries.
 
-## Dependencies and gates
+## Cost and operations checkpoint
 
-- Sales and receiving depend on the stock ledger and approved lifecycle rules.
-- Dashboard/report definitions depend on agreed business meanings, currency, timezone and status semantics.
-- Production launch depends on TLS/domain, managed PostgreSQL, secrets, monitoring, backup/restore verification, access policy and release runbook.
-- Any M-PESA work, accounting capability, additional roles, multi-shop tenancy, offline mode or native application requires separate approval and scope review.
+Before enabling hosted macOS builds, compare current provider prices, free allowances, artifact retention and secret controls. As of 2026-11-03, see the current indicative USD prices in `architecture.md`; Apple Developer membership for TestFlight is currently USD $99/year. Confirm the account owner, budget and permitted billing method first. Windows code-signing certificate, managed backend/database, storage, backups, monitoring, and printer hardware costs remain separate and unpriced.

@@ -1,5 +1,7 @@
 # Architecture and readiness review
 
+> Historical review from the browser-application phase. The later BMM Auto Motors platform decision replaces its browser-only architecture findings. The current approved target is one Flutter application for Windows, Android and iOS over the FastAPI API; see `architecture.md` and `requirements.md`.
+
 ## Scope reviewed
 
 Reviewed all eight project documents: `AGENTS.md`, `README.md`, and the six documents under `docs/` present before this review (`requirements.md`, `architecture.md`, `database-design.md`, `api-contracts.md`, `security-plan.md`, `implementation-plan.md`). No application code was reviewed because none exists.

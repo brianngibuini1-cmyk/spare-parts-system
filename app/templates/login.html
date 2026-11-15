@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Owner sign in · Spare Parts Shop</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body><main class="auth-wrap"><section class="auth-card" aria-labelledby="sign-in-title">
+  <p>Spare Parts Shop</p><h1 id="sign-in-title">Owner sign in</h1>
+  <p>Use the owner account provisioned for this shop.</p>
+  <form id="login-form">
+    <label for="login-name">Login name</label><input id="login-name" name="login_name" autocomplete="username" required maxlength="254">
+    <label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required maxlength="1024">
+    <p id="login-error" role="alert" aria-live="polite"></p><button type="submit">Sign in</button>
+  </form>
+</section></main><script src="/static/login.js" defer></script></body></html>

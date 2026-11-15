@@ -2,14 +2,19 @@
 
 ## Conventions
 
-PostgreSQL is authoritative. Use UUID primary keys (or another consistently chosen non-guessable key strategy), `timestamptz` in UTC, foreign keys, `NOT NULL` where meaningful, and indexes for common search/filter paths. Money uses `numeric(precision, scale)`, never binary floating point; currency and scale require a business decision. Quantities use an explicit numeric precision appropriate to the chosen unit model. Names and policies below are proposed logical names, not implemented migrations.
+PostgreSQL is authoritative. Use UUID primary keys (or another consistently chosen non-guessable key strategy), `timestamptz` in UTC, foreign keys, `NOT NULL` where meaningful, and indexes for common search/filter paths. Money uses `numeric(precision, scale)`, never binary floating point; currency remains a business decision. Quantities use an explicit numeric precision appropriate to the chosen unit model. Authentication and product catalogue tables are implemented by migrations through `0007`.
 
 ## Core entities and relationships
 
 | Entity | Key fields and relationships |
 |---|---|
-| `users` | id, normalized unique login identifier, password hash, status, created/updated timestamps. Initially one owner. |
-| `products` | id, unique SKU/barcode only if owner approves, name, description, unit, selling price, active flag, timestamps. Product identity and price fields need final decisions. |
+| `users` | id, globally unique normalized login identifier, password hash, `owner`/`attendant` role, active status, created timestamp. Migration `0004` copies the existing owner and backfills user IDs into sessions/audit events without rotating existing session tokens. The original `owner_accounts` rows and legacy FK columns remain for compatibility and history. |
+| `auth_sessions` | Existing browser-cookie sessions. Stores only token and CSRF hashes, user/legacy owner references, activity/idle/absolute expiry and revocation. Existing owner browser sessions are preserved by migration `0004`. |
+| `native_auth_sessions` | Native Flutter session with user FK, current access-token hash, access expiry, last refresh, idle/absolute expiry and revocation. One session represents one revocable token family. |
+| `native_refresh_tokens` | Hashed refresh-token history for a native session. `consumed_at` and replacement hash record rotation/replay history; a partial unique index allows at most one unconsumed refresh token per session. Rows are retained until their session expires/revokes and is pruned. |
+| `auth_events` | Minimal safe auth/account audit events, including native login, refresh-token reuse and logout. Passwords, access/refresh tokens and their hashes are never recorded. |
+| `products` | UUID id, unique generated internal reference, name, optional description/category/manufacturer part number/image key, `NUMERIC(18,4)` selling price, approval status, submitting/approving users and timestamps, rejection reason. Names and manufacturer part numbers are not unique. |
+| `product_events` | Append-only application events for submission, edit, approval, rejection and image update, with actor and timestamp. |
 | `suppliers` | id, name, contact fields, active flag, timestamps. Required fields TBD. |
 | `sales` | id, unique human-readable receipt/reference, status, sold_at, created_by user, currency, totals, payment summary as approved, timestamps. |
 | `sale_lines` | id, sale_id FK, product_id FK, quantity, unit price snapshot, discount/tax snapshots if approved, line total, product name/SKU snapshot. |
@@ -18,14 +23,14 @@ PostgreSQL is authoritative. Use UUID primary keys (or another consistently chos
 | `stock_movements` | id, product_id FK, event type, signed quantity delta, source document type/id or typed nullable FKs, occurred_at, actor, reason, idempotency/reference key. Append-only after posting. |
 | `inventory_balances` (optional cache) | product_id PK/FK, on_hand quantity, updated_at, maintained in the same transaction as movements; ledger remains source of truth. |
 | `audit_events` | id, actor user FK (nullable only for system event), action, entity type/id, timestamp, request/correlation ID, safe before/after metadata, reason where applicable. No secrets. |
-| `sessions` (if DB-backed) | id, user_id FK, hashed token identifier, created/expires/revoked timestamps, client metadata limited to operational need. Could instead use a vetted signed-cookie/session strategy. |
+| `sessions` (future business sessions) | Do not add a second session mechanism; use the implemented `auth_sessions` for browser cookies and `native_auth_sessions` / `native_refresh_tokens` for Flutter clients. |
 
 Relationships: one sale has many sale lines; one purchase has many purchase lines and belongs to a supplier; each line points to a product; each stock movement points to a product and an originating business event; each audit event records an actor and target. Products can remain referenced by history after deactivation.
 
 ## Integrity and indexing
 
 - Enforce positive line quantities for sale/receipt documents and valid nonnegative prices/costs only after policies are confirmed.
-- Unique constraints for normalized login, approved SKU/barcode, and receipt reference.
+- Unique constraints for normalized login and generated product reference. No uniqueness constraint exists on product name or manufacturer part number.
 - Index sales by sold_at/status/reference; line rows by sale_id; purchases by supplier/date/status; movements by product/occurred_at and source; audit by timestamp/actor/target.
 - Foreign key deletion behavior should preserve history: restrict deletion of referenced products, users, suppliers, sales or purchases; prefer deactivation and retention policy.
 - Use checks to prevent invalid statuses and malformed quantities. Avoid constraints that encode unresolved policies (for example, no-negative-stock) until approved.
@@ -44,3 +49,17 @@ Every inventory change is a signed movement. Expected initial event categories a
 ## Decisions still required
 
 Currency and decimal scale; units/fractional quantities; cost and valuation method; SKU/barcode constraints; sale/payment/discount/tax data model; negative-stock policy; purchase/partial receipt lifecycle; return/void/reversal representation; audit retention; session persistence; customer data fields; hard-delete and archival policy.
+
+## Authentication migration downgrade and recovery policy
+
+Authentication downgrade commands are guarded against discarding records that the prior schema cannot represent. A refused downgrade leaves the migration revision and data unchanged. Do not use a production downgrade as a substitute for a tested backup restoration; take and verify a backup before any migration release, and prefer a forward corrective migration when newer-schema records already exist.
+
+Other revisions in the current chain are not universally reversible with data: `0002_owner_authentication` drops its authentication tables on downgrade, `0003_client_login_throttling` cannot restore throttle rows removed when its upgrade changed throttle-key meaning, and `0005_product_catalogue` drops products and product-event history on downgrade. Treat those downgrades as destructive and restore a verified backup if their data must be retained.
+
+| Migration | Downgrade policy |
+|---|---|
+| `0004_named_user_roles` | Reversible only while `users` contains owner identities that exactly match `owner_accounts`, all browser sessions map to the legacy owner ID, and audit actors map to the legacy owner. The downgrade refuses attendant accounts, attendant sessions, unrepresentable actor references, or changed/missing owner identity records. Preserve the database and use a forward correction or restore a verified pre-migration backup. |
+| `0006_attendant_auth_events` | Reversible only if there are no `attendant_created` or `attendant_status_changed` audit rows. It refuses before changing the check constraint when such audit history exists. Keep the audit rows and use a forward correction or restore a verified backup. |
+| `0007_native_auth_sessions` | Reversible only if there are no native sessions, refresh-token history, or native-authentication audit rows. It refuses before changing constraints or dropping native tables when any such rows exist. Keep session/audit data and use a forward correction or restore a verified backup. |
+
+PostgreSQL integration tests cover safe downgrades and refusal with preserved attendant-session and authentication-event records. These checks reduce accidental loss; they do not replace backup-and-restore rehearsal or release approval.

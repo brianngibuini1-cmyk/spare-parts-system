@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#102a43">
+    <title>Shop Demo · Spare Parts</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/demo.css') }}">
+    <script src="{{ url_for('static', path='/demo.js') }}" defer></script>
+  </head>
+  <body>
+    <div class="demo-layout">
+      <aside class="sidebar" id="sidebar">
+        <a class="brand" href="/demo#dashboard" aria-label="Spare Parts demo dashboard">
+          <span class="brand-mark">SP</span>
+          <span class="brand-copy"><strong>Spare Parts</strong><small>SHOP MANAGEMENT</small></span>
+        </a>
+        <div class="nav-label">WORKSPACE</div>
+        <nav class="side-nav" aria-label="Demonstration screens">
+          <a href="#dashboard" data-page-link="dashboard" class="active"><span class="nav-icon">▦</span>Dashboard</a>
+          <a href="#products" data-page-link="products"><span class="nav-icon">▤</span>Products</a>
+          <a href="#inventory" data-page-link="inventory"><span class="nav-icon">▥</span>Inventory</a>
+          <a href="#sales" data-page-link="sales"><span class="nav-icon">＋</span>Sales checkout</a>
+          <a href="#suppliers" data-page-link="suppliers"><span class="nav-icon">⇄</span>Suppliers</a>
+          <a href="#receiving" data-page-link="receiving"><span class="nav-icon">↓</span>Stock receiving</a>
+        </nav>
+        <div class="sidebar-note">
+          <span class="note-pip"></span>
+          <div><strong>Demonstration mode</strong><small>Changes are temporary</small></div>
+        </div>
+        <a class="back-link" href="/">← Back to foundation</a>
+      </aside>
+
+      <div class="main-column">
+        <header class="topbar">
+          <button class="mobile-menu" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar">☰</button>
+          <div class="breadcrumb">Workspace <span>/</span> <strong id="screen-label">Dashboard</strong></div>
+          <div class="topbar-right"><span class="demo-badge"><i></i> DEMO DATA</span></div>
+        </header>
+
+        <main class="page-content">
+          <div class="demo-banner" role="note">
+            <span class="banner-icon">i</span>
+            <p><strong>Fictional demonstration data.</strong> Edits and receiving examples exist only in this browser session. Prices are illustrative amounts; currency and tax rules are not configured.</p>
+          </div>
+
+          <section class="screen" id="screen-dashboard" data-screen="dashboard">
+            <div class="page-heading"><div><div class="eyebrow">DEMONSTRATION WORKSPACE</div><h1>Shop overview</h1><p class="subheading">Here’s a sample view of the shop at a glance.</p></div><button class="button button-light" data-action="go-sales">＋ New checkout</button></div>
+            <div class="metric-grid">
+              <article class="metric-card"><div class="metric-top"><span>Sample sales</span><span class="metric-icon mint">↗</span></div><strong>08</strong><small><span class="trend-up">+2</span> compared with prior sample day</small></article>
+              <article class="metric-card"><div class="metric-top"><span>Illustrative amount</span><span class="metric-icon blue">◈</span></div><strong>542.75</strong><small>Sample only · currency not set</small></article>
+              <article class="metric-card"><div class="metric-top"><span>Sample catalogue</span><span class="metric-icon gold">▤</span></div><strong id="metric-products">04</strong><small>Fictional demonstration products</small></article>
+              <article class="metric-card"><div class="metric-top"><span>Needs a look</span><span class="metric-icon rose">!</span></div><strong id="metric-low-stock">02</strong><small>Based on sample reorder markers</small></article>
+            </div>
+
+            <div class="dashboard-grid">
+              <article class="panel sales-panel">
+                <div class="panel-heading"><div><h2>Sales overview</h2><p>Illustrative daily amounts · no currency or tax logic</p></div><span class="period-label">SAMPLE WEEK</span></div>
+                <div class="chart-area" id="sales-chart" aria-label="Sample sales overview chart"></div>
+              </article>
+              <article class="panel activity-panel">
+                <div class="panel-heading"><div><h2>Recent activity</h2><p>Fictional sample events</p></div><span class="more-mark">•••</span></div>
+                <div class="activity-list" id="activity-list"></div>
+              </article>
+            </div>
+            <article class="panel low-stock-panel"><div class="panel-heading"><div><h2>Stock to review</h2><p>Sample reorder markers only</p></div><button class="text-button" data-action="go-inventory">View inventory →</button></div><div id="dashboard-low-stock" class="low-stock-list"></div></article>
+          </section>
+
+          <section class="screen" id="screen-products" data-screen="products" hidden>
+            <div class="page-heading"><div><div class="eyebrow">CATALOGUE</div><h1>Products</h1><p class="subheading">Browse and edit fictional sample parts.</p></div><button class="button button-primary" data-action="add-product">＋ Add product</button></div>
+            <div class="panel table-panel">
+              <div class="table-toolbar"><label class="search-box"><span aria-hidden="true">⌕</span><input id="product-search" type="search" placeholder="Search name, code or category" aria-label="Search products"></label><span class="results-label" id="product-count"></span></div>
+              <div class="table-scroll"><table><thead><tr><th>PRODUCT</th><th>CODE</th><th>CATEGORY</th><th>LOCATION</th><th>DEMO PRICE</th><th>ON HAND</th><th></th></tr></thead><tbody id="product-rows"></tbody></table></div>
+            </div>
+            <p class="footnote">Product codes, prices, locations and quantities are fictional examples. Adding or editing a product changes only this page session.</p>
+          </section>
+
+          <section class="screen" id="screen-inventory" data-screen="inventory" hidden>
+            <div class="page-heading"><div><div class="eyebrow">STOCK AT A GLANCE</div><h1>Inventory</h1><p class="subheading">Sample on-hand quantities and illustrative reorder markers.</p></div><button class="button button-light" data-action="go-receiving">Receive sample stock ↓</button></div>
+            <div class="inventory-summary"><div class="mini-stat"><span>Products shown</span><strong id="inventory-total">04</strong></div><div class="mini-stat"><span>Units in sample</span><strong id="inventory-units">52</strong></div><div class="mini-stat"><span>Review markers</span><strong id="inventory-alerts">02</strong></div></div>
+            <div class="panel table-panel"><div class="table-toolbar"><label class="search-box"><span aria-hidden="true">⌕</span><input id="inventory-search" type="search" placeholder="Find a part" aria-label="Search inventory"></label><span class="results-label">SAMPLE QUANTITIES</span></div><div class="table-scroll"><table><thead><tr><th>PRODUCT</th><th>CODE</th><th>LOCATION</th><th>ON HAND</th><th>SAMPLE MARKER</th><th>STATUS</th></tr></thead><tbody id="inventory-rows"></tbody></table></div></div>
+            <p class="footnote">This demonstration does not enforce a production stock policy. Receiving examples change only in-memory sample quantities.</p>
+          </section>
+
+          <section class="screen" id="screen-sales" data-screen="sales" hidden>
+            <div class="page-heading"><div><div class="eyebrow">COUNTER WORKFLOW · PREVIEW ONLY</div><h1>Sales checkout</h1><p class="subheading">Build a sample cart and preview its receipt. Nothing is sold or saved.</p></div><span class="step-chip">01 <span>Cart</span> <b>›</b> 02 <span>Preview</span></span></div>
+            <div class="checkout-layout">
+              <section class="panel product-picker"><div class="panel-heading"><div><h2>Select a part</h2><p>Choose from the fictional catalogue</p></div></div><label class="search-box picker-search"><span aria-hidden="true">⌕</span><input id="checkout-search" type="search" placeholder="Search sample products" aria-label="Search checkout products"></label><div class="picker-list" id="checkout-products"></div></section>
+              <section class="panel cart-panel"><div class="panel-heading"><div><h2>Current cart</h2><p><span id="cart-count">0 items</span> · preview only</p></div><button class="icon-button" data-action="clear-cart" aria-label="Clear cart">⌫</button></div><div id="cart-lines" class="cart-lines"></div><div class="cart-empty" id="cart-empty"><span>▱</span><strong>Your cart is empty</strong><small>Select a sample part to begin.</small></div><div class="cart-summary"><div><span>Illustrative subtotal</span><strong id="cart-subtotal">0.00</strong></div><p>Tax, discounts and payment are not configured or calculated.</p><div class="cart-total"><span>Preview total</span><strong id="cart-total">0.00</strong></div><button class="button button-primary button-wide" data-action="preview-receipt" id="preview-button" disabled>Preview receipt <span>→</span></button></div></section>
+            </div>
+          </section>
+
+          <section class="screen" id="screen-receipt" data-screen="receipt" hidden>
+            <div class="page-heading"><div><div class="eyebrow">CHECKOUT · NOT A COMPLETED SALE</div><h1>Receipt preview</h1><p class="subheading">This preview is temporary and is not a tax receipt.</p></div><button class="button button-light" data-action="back-to-sales">← Back to checkout</button></div>
+            <div class="receipt-actions"><span class="preview-warning">PREVIEW ONLY · NO SALE RECORDED</span><button class="button button-primary" data-action="print-receipt">Print preview</button></div>
+            <article class="receipt-paper" id="receipt-paper"><div class="receipt-brand"><span class="brand-mark">SP</span><div><strong>Sample Parts Counter</strong><small>Fictional demonstration shop</small></div></div><div class="receipt-rule"></div><div class="receipt-heading"><h2>Receipt preview</h2><span>DEMO</span></div><div class="receipt-meta"><span>Preview reference</span><strong>NOT ISSUED</strong><span>Preview time</span><strong id="receipt-date">—</strong></div><div class="table-scroll"><table><thead><tr><th>ITEM</th><th>QTY</th><th>DEMO PRICE</th><th>AMOUNT</th></tr></thead><tbody id="receipt-lines"></tbody></table></div><div class="receipt-total"><span>Illustrative total</span><strong id="receipt-total">0.00</strong></div><p class="receipt-disclaimer">No currency, tax, discount, payment method or sale reference is configured. This is a browser-only preview and is not a completed sale or fiscal receipt.</p></article>
+          </section>
+
+          <section class="screen" id="screen-suppliers" data-screen="suppliers" hidden>
+            <div class="page-heading"><div><div class="eyebrow">PARTNER DIRECTORY</div><h1>Suppliers</h1><p class="subheading">Fictional supplier contacts for the demonstration.</p></div><span class="count-chip">02 SAMPLE SUPPLIERS</span></div>
+            <div class="supplier-layout"><div class="panel supplier-list-panel"><div class="panel-heading"><div><h2>Supplier list</h2><p>Select a supplier to view sample details</p></div></div><div class="supplier-list" id="supplier-list"></div></div><aside class="panel supplier-detail" id="supplier-detail" aria-label="Supplier details" aria-live="polite"></aside></div>
+            <p class="footnote">Contact details use reserved fictional domains and numbers. No messages or orders can be sent from this screen.</p>
+          </section>
+
+          <section class="screen" id="screen-receiving" data-screen="receiving" hidden>
+            <div class="page-heading"><div><div class="eyebrow">INVENTORY · DEMONSTRATION</div><h1>Stock receiving</h1><p class="subheading">Preview a sample delivery and see the in-memory quantity change.</p></div><span class="preview-warning">NOT A PRODUCTION MOVEMENT</span></div>
+            <div class="receiving-layout"><form class="panel receive-form" id="receive-form"><div class="panel-heading"><div><h2>Enter sample delivery</h2><p>All entries reset when you reload the page.</p></div><span class="form-icon">↓</span></div><label>Supplier<select name="supplierId" id="receive-supplier" required></select></label><label>Product<select name="productId" id="receive-product" required></select></label><label>Quantity received<input name="quantity" type="number" min="1" step="1" value="1" required></label><div class="before-after" id="receive-preview">Choose a product to preview the sample quantity change.</div><button class="button button-primary" type="submit">Apply to demo view</button><p class="form-disclaimer">This does not create a purchase, supplier balance, audit event or database stock movement.</p></form><aside class="panel receive-info"><span class="receive-info-icon">i</span><h2>Demo-only behavior</h2><p>Submitting this form increases the selected product’s sample on-hand number in this browser session. It does not persist or represent an approved receiving policy.</p><div class="info-divider"></div><div class="info-row"><span>Database write</span><strong>No</strong></div><div class="info-row"><span>Persistent after refresh</span><strong>No</strong></div><div class="info-row"><span>Supplier payment</span><strong>Not handled</strong></div></aside></div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <dialog class="product-dialog" id="product-dialog"><form id="product-form" method="dialog"><div class="dialog-heading"><div><div class="eyebrow">SAMPLE CATALOGUE</div><h2 id="product-dialog-title">Add sample product</h2></div><button type="button" class="icon-button" data-action="close-product-dialog" aria-label="Close dialog">×</button></div><input type="hidden" name="id"><label>Product name<input name="name" required maxlength="80" placeholder="e.g. Brake pad set"></label><div class="form-row"><label>Demo code<input name="code" required maxlength="24" placeholder="DEMO-105"></label><label>Category<input name="category" required maxlength="40" placeholder="Braking"></label></div><div class="form-row"><label>Location<input name="location" maxlength="24" placeholder="A1-01"></label><label>Illustrative price<input name="price" type="number" min="0" step="0.01" required></label></div><p class="form-disclaimer">New items start at zero sample quantity. Price is illustrative; currency and tax are undefined.</p><div class="dialog-actions"><button class="button button-light" type="button" data-action="close-product-dialog">Cancel</button><button class="button button-primary" type="submit">Save in demo</button></div></form></dialog>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <div class="mobile-scrim" id="mobile-scrim" hidden></div>
+  </body>
+</html>
