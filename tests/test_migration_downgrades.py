@@ -238,6 +238,7 @@ def test_0007_downgrade_refuses_native_events_and_preserves_audit(
     engine = create_engine(migration_downgrade_database_url)
     try:
         _upgrade(migration_downgrade_database_url, "head", monkeypatch)
+        starting_revision = _revision(engine)
         _insert_auth_event(engine, "native_login_succeeded")
 
         with pytest.raises(
@@ -247,8 +248,10 @@ def test_0007_downgrade_refuses_native_events_and_preserves_audit(
                 migration_downgrade_database_url, "0006_attendant_auth_events", monkeypatch
             )
 
-        assert _revision(engine) == "0007_native_auth_sessions"
+        assert _revision(engine) == starting_revision
         assert inspect(engine).has_table("native_auth_sessions")
+        assert inspect(engine).has_table("sales")
+        assert inspect(engine).has_table("stock_movements")
         with engine.connect() as connection:
             assert connection.execute(
                 text("SELECT COUNT(*) FROM auth_events WHERE event_type='native_login_succeeded'")
@@ -267,6 +270,7 @@ def test_0007_downgrade_refuses_native_sessions_and_refresh_history(
         with engine.begin() as connection:
             _insert_legacy_owner(connection)
         _upgrade(migration_downgrade_database_url, "head", monkeypatch)
+        starting_revision = _revision(engine)
         with engine.begin() as connection:
             native_session_id = connection.execute(
                 text(
@@ -297,7 +301,9 @@ def test_0007_downgrade_refuses_native_sessions_and_refresh_history(
                 migration_downgrade_database_url, "0006_attendant_auth_events", monkeypatch
             )
 
-        assert _revision(engine) == "0007_native_auth_sessions"
+        assert _revision(engine) == starting_revision
+        assert inspect(engine).has_table("sales")
+        assert inspect(engine).has_table("stock_movements")
         with engine.connect() as connection:
             assert connection.execute(
                 text("SELECT COUNT(*) FROM native_auth_sessions")
