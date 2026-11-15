@@ -274,3 +274,223 @@ class ProductEvent(Base):
     event_type: Mapped[str] = mapped_column(String(24), nullable=False)
     detail: Mapped[str | None] = mapped_column(Text)
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class Supplier(Base):
+    """Supplier directory record; deactivated rather than hard-deleted once referenced."""
+
+    __tablename__ = "suppliers"
+    __table_args__ = (
+        UniqueConstraint("normalized_name", name="uq_suppliers_normalized_name"),
+        CheckConstraint("length(trim(name)) BETWEEN 1 AND 200", name="ck_suppliers_name_nonempty"),
+        CheckConstraint("length(normalized_name) BETWEEN 1 AND 200", name="ck_suppliers_normalized_name_nonempty"),
+        Index("ix_suppliers_is_active_name", "is_active", "name"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    normalized_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    contact_person: Mapped[str | None] = mapped_column(String(160))
+    phone: Mapped[str | None] = mapped_column(String(64))
+    email: Mapped[str | None] = mapped_column(String(254))
+    notes: Mapped[str | None] = mapped_column(Text)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now
+    )
+
+
+class GoodsReceipt(Base):
+    """Posted incoming stock receipt document; immutable once recorded."""
+
+    __tablename__ = "goods_receipts"
+    __table_args__ = (
+        UniqueConstraint("idempotency_key", name="uq_goods_receipts_idempotency_key"),
+        CheckConstraint("length(idempotency_key) BETWEEN 1 AND 128", name="ck_goods_receipts_idempotency_key"),
+        CheckConstraint("length(request_hash) = 64", name="ck_goods_receipts_request_hash"),
+        CheckConstraint(
+            "NOT (supplier_id IS NOT NULL AND unlisted_supplier_name IS NOT NULL)",
+            name="ck_goods_receipts_supplier_exclusive",
+        ),
+        Index("ix_goods_receipts_received_at", "received_at"),
+        Index("ix_goods_receipts_supplier_id", "supplier_id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    supplier_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("suppliers.id", ondelete="RESTRICT"), nullable=True
+    )
+    unlisted_supplier_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    delivery_note_reference: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    request_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    received_by: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    supplier: Mapped[Supplier | None] = relationship(foreign_keys=[supplier_id])
+    receiver: Mapped[UserAccount] = relationship(foreign_keys=[received_by])
+    lines: Mapped[list["GoodsReceiptLine"]] = relationship(
+        back_populates="receipt", order_by="GoodsReceiptLine.line_number"
+    )
+
+
+class GoodsReceiptLine(Base):
+    """Line item belonging to a posted goods receipt."""
+
+    __tablename__ = "goods_receipt_lines"
+    __table_args__ = (
+        UniqueConstraint("receipt_id", "line_number", name="uq_goods_receipt_lines_order"),
+        CheckConstraint("line_number >= 1", name="ck_goods_receipt_lines_line_number"),
+        CheckConstraint("quantity > 0", name="ck_goods_receipt_lines_quantity_positive"),
+        CheckConstraint("unit_cost >= 0", name="ck_goods_receipt_lines_unit_cost_nonnegative"),
+        Index("ix_goods_receipt_lines_receipt_id", "receipt_id"),
+        Index("ix_goods_receipt_lines_product_id", "product_id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    receipt_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("goods_receipts.id", ondelete="RESTRICT"), nullable=False
+    )
+    line_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    product_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("products.id", ondelete="RESTRICT"), nullable=False
+    )
+    quantity: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+    unit_cost: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+
+    receipt: Mapped[GoodsReceipt] = relationship(back_populates="lines")
+    product: Mapped[Product] = relationship(foreign_keys=[product_id])
+
+
+class StockMovement(Base):
+    """Append-only stock movement ledger; authoritative source of quantity changes."""
+
+    __tablename__ = "stock_movements"
+    __table_args__ = (
+        CheckConstraint("movement_type IN ('receipt', 'adjustment', 'sale')", name="ck_stock_movements_type"),
+        CheckConstraint("quantity_delta <> 0", name="ck_stock_movements_nonzero_delta"),
+        CheckConstraint(
+            "source_type IN ('goods_receipt', 'stock_adjustment', 'sale')",
+            name="ck_stock_movements_source_type",
+        ),
+        CheckConstraint(
+            "movement_type <> 'adjustment' OR (reason IS NOT NULL AND length(trim(reason)) > 0)",
+            name="ck_stock_movements_adjustment_reason",
+        ),
+        Index("ix_stock_movements_product_created", "product_id", "created_at"),
+        Index("ix_stock_movements_source", "source_type", "source_id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    product_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("products.id", ondelete="RESTRICT"), nullable=False
+    )
+    movement_type: Mapped[str] = mapped_column(String(24), nullable=False)
+    quantity_delta: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+    source_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    source_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    source_reference: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    actor_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    product: Mapped[Product] = relationship(foreign_keys=[product_id])
+    actor: Mapped[UserAccount] = relationship(foreign_keys=[actor_id])
+
+
+class InventoryBalance(Base):
+    """Transactional stock balance cache per product; never negative."""
+
+    __tablename__ = "inventory_balances"
+    __table_args__ = (
+        CheckConstraint("quantity_on_hand >= 0", name="ck_inventory_balances_nonnegative"),
+    )
+
+    product_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("products.id", ondelete="RESTRICT"), primary_key=True
+    )
+    quantity_on_hand: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False, default=Decimal("0.0000"))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    product: Mapped[Product] = relationship(foreign_keys=[product_id])
+
+
+class Sale(Base):
+    """Completed sale and payment record; immutable once posted."""
+
+    __tablename__ = "sales"
+    __table_args__ = (
+        UniqueConstraint("receipt_number", name="uq_sales_receipt_number"),
+        UniqueConstraint("idempotency_key", name="uq_sales_idempotency_key"),
+        CheckConstraint("length(receipt_number) BETWEEN 1 AND 64", name="ck_sales_receipt_number"),
+        CheckConstraint("length(idempotency_key) BETWEEN 1 AND 128", name="ck_sales_idempotency_key"),
+        CheckConstraint("length(request_hash) = 64", name="ck_sales_request_hash"),
+        CheckConstraint("status IN ('completed')", name="ck_sales_status"),
+        CheckConstraint("total_amount >= 0", name="ck_sales_total_nonnegative"),
+        CheckConstraint(
+            "payment_method IN ('cash', 'mpesa')",
+            name="ck_sales_payment_method",
+        ),
+        CheckConstraint("amount_tendered >= total_amount", name="ck_sales_amount_tendered_sufficient"),
+        CheckConstraint("change_given >= 0", name="ck_sales_change_nonnegative"),
+        Index("ix_sales_sold_at", "sold_at"),
+        Index("ix_sales_sold_by", "sold_by"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    receipt_number: Mapped[str] = mapped_column(String(64), nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    request_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="completed")
+    total_amount: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+    payment_method: Mapped[str] = mapped_column(String(32), nullable=False)
+    amount_tendered: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+    change_given: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+    payment_reference: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sold_by: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    sold_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    seller: Mapped[UserAccount] = relationship(foreign_keys=[sold_by])
+    lines: Mapped[list["SaleLine"]] = relationship(
+        back_populates="sale", order_by="SaleLine.line_number"
+    )
+
+
+class SaleLine(Base):
+    """Sale line with historical product and price snapshots at the time of sale."""
+
+    __tablename__ = "sale_lines"
+    __table_args__ = (
+        UniqueConstraint("sale_id", "line_number", name="uq_sale_lines_order"),
+        UniqueConstraint("sale_id", "product_id", name="uq_sale_lines_product"),
+        CheckConstraint("line_number >= 1", name="ck_sale_lines_line_number"),
+        CheckConstraint("quantity > 0", name="ck_sale_lines_quantity_positive"),
+        CheckConstraint("unit_price >= 0", name="ck_sale_lines_unit_price_nonnegative"),
+        CheckConstraint("line_total >= 0", name="ck_sale_lines_total_nonnegative"),
+        Index("ix_sale_lines_sale_id", "sale_id"),
+        Index("ix_sale_lines_product_id", "product_id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    sale_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("sales.id", ondelete="RESTRICT"), nullable=False
+    )
+    line_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    product_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("products.id", ondelete="RESTRICT"), nullable=False
+    )
+    product_internal_reference: Mapped[str] = mapped_column(String(64), nullable=False)
+    product_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    product_description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    manufacturer_part_number: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    unit_price: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+    quantity: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+    line_total: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+
+    sale: Mapped[Sale] = relationship(back_populates="lines")
+    product: Mapped[Product] = relationship(foreign_keys=[product_id])

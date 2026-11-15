@@ -34,7 +34,7 @@ This document captures the owner's supplied task as the authoritative initial sc
 1. **Dashboard:** summarize useful business and stock indicators with a selected reporting period. Exact metrics, defaults and low-stock definitions are open decisions.
 2. **Products:** create pending submissions, view/search products, edit own pending submissions, approve/reject as owner, and retain rejected history. The current catalogue uses generated internal references, optional category/manufacturer part number, and does not enforce manufacturer part-number or name uniqueness. Barcode, unit, compatibility, currency and tax decisions remain open. Stock, sales and checkout are not part of this catalogue milestone.
 3. **Inventory:** show stock-on-hand and its movement history; expose current quantities without allowing arbitrary edits. Thresholds and stock valuation are open decisions.
-4. **Sales and checkout:** capture a sale, its line items and payment details, update inventory consistently, and show a printable receipt. Discounts, tax, tender types, change, returns/voids, and stock shortage policy are open decisions.
+4. **Sales and checkout:** capture a sale, its line items and payment details, update inventory consistently, and show a digital receipt. MVP accepts full payment per sale via Cash (`cash`) or manually recorded M-PESA (`mpesa`, with optional manual reference and no automated STK/verification); partial payments, split payments, and excess non-cash amounts are rejected. Discounts, tax, and returns/voids remain open decisions.
 5. **Suppliers:** manage supplier records and associate purchases/receipts with suppliers. Required contact fields and duplicate rules are open decisions.
 6. **Purchases and receiving:** record supplier purchase documents and received quantities, and increase stock only when receipt is posted. Partial receipts, costs, purchase statuses and editing/cancellation rules need confirmation.
 7. **Receipts:** render a print-friendly receipt containing a unique reference and sale details. Legal/tax content, paper width, branding, and whether to include customer details are open decisions.
@@ -65,7 +65,7 @@ This document captures the owner's supplied task as the authoritative initial sc
 1. Currency, tax/VAT treatment, receipt fiscal/legal requirements, and any tax-inclusive/exclusive pricing convention.
 2. Product model: SKU/barcode uniqueness, category, unit of measure, part compatibility/vehicle fitment, variants, and whether negative stock is permitted.
 3. Pricing: default selling price, cost tracking, margin visibility, price changes, line/order discounts, and rounding behavior.
-4. Sale policy: accepted payment methods, split payments, amount due/change, whether payment is required to finalize, sale numbering, cancellation/void and return/refund workflow.
+4. Sale policy: MVP supports `cash` (calculates change) and manually recorded `mpesa` (exact total required, optional reference, not auto-verified) with full payment required and no partial/split payments; cancellation/void, return/refund workflow, and receipt sequence customization remain open.
 5. Purchase policy: purchase order vs direct receipt, partial receipt, cost capture, supplier invoice references, and handling damaged/returned stock.
 6. Inventory controls: who can adjust, allowed reasons, approval or confirmation process, physical count workflow, and whether corrections are represented as ledger movements.
 7. Alerts and reports: low-stock threshold, dashboard metrics, report periods/timezone, exports, and historical retention.

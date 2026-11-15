@@ -133,10 +133,10 @@ HTML pages are `/products`, `/products/{id}`, `/products/approvals` (owner-only)
 | `POST /api/v1/purchases` | Create draft purchase | Authenticated; lifecycle TBD. |
 | `GET /api/v1/purchases/{id}` / `PATCH ...` | Read/edit permitted draft | Authenticated; posted record rules TBD. |
 | `POST /api/v1/purchases/{id}/receive` | Post received quantities | Authenticated; atomic stock movement creation; idempotency key. |
-| `POST /api/v1/sales` | Create/post checkout | Authenticated; request contains client cart and payment data; server recalculates all totals. Whether draft and post are separate endpoints is TBD. |
-| `GET /api/v1/sales?from=&to=&q=&status=` | Sales history | Authenticated; paginated. |
-| `GET /api/v1/sales/{id}` | Sale details | Authenticated. |
-| `GET /api/v1/sales/{id}/receipt` | Printable HTML receipt | Authenticated; print CSS; access and receipt content policy TBD. |
+| `POST /api/v1/sales` | Create/post sale | Authenticated (owner/attendant); idempotency key; accepts `payment_method` (`cash` or manual `mpesa`), `amount_tendered`, optional `payment_reference`/`notes`, and `lines[{product_id, quantity}]`; server resolves approved product prices, calculates totals/change, rejects partial/split/excess-M-PESA payments (`422`) and insufficient stock (`409`), and atomically deducts stock. |
+| `GET /api/v1/sales?q=&limit=&offset=` | Sales history | Authenticated; paginated, ordered newest first, searchable by `receipt_number` or `payment_reference`. |
+| `GET /api/v1/sales/{id}` | Sale & receipt details | Authenticated; returns sale header, payment summary, and immutable product/price line snapshots. |
+| `GET /api/v1/sales/{id}/receipt` | Printable HTML receipt | Planned/future; print CSS; access and receipt content policy TBD. |
 | `GET /api/v1/reports/sales?from=&to=&group_by=` | Sales summary/detail report | Authenticated; groupings and export format TBD. |
 | `GET /api/v1/reports/inventory` | Stock listing/report | Authenticated; valuation inclusion TBD. |
 | `GET /api/v1/audit-events?from=&to=&actor=&entity=` | Audit search | Owner authenticated; scope/retention TBD. |

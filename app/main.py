@@ -32,6 +32,9 @@ from app.config import Settings, get_settings
 from app.database import create_database_engine, create_session_factory, get_session
 from app.models import AuthEvent, utc_now
 from app.catalogue_routes import router as catalogue_router
+from app.inventory_routes import inventory_router, suppliers_router
+from app.reports_routes import dashboard_router, reports_router
+from app.sales_routes import sales_router
 from app.image_storage import LocalProductImageStorage
 from app.native_auth import router as native_auth_router
 from app.upload_limits import ProductImageBodyLimitMiddleware
@@ -199,6 +202,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return {"status": "ok", "database": "ok"}
 
     application.include_router(catalogue_router)
+    application.include_router(suppliers_router)
+    application.include_router(inventory_router)
+    application.include_router(sales_router)
+    application.include_router(dashboard_router)
+    application.include_router(reports_router)
     application.include_router(native_auth_router)
     return application
 

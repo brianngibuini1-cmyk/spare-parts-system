@@ -16,8 +16,8 @@ PostgreSQL is authoritative. Use UUID primary keys (or another consistently chos
 | `products` | UUID id, unique generated internal reference, name, optional description/category/manufacturer part number/image key, `NUMERIC(18,4)` selling price, approval status, submitting/approving users and timestamps, rejection reason. Names and manufacturer part numbers are not unique. |
 | `product_events` | Append-only application events for submission, edit, approval, rejection and image update, with actor and timestamp. |
 | `suppliers` | id, name, contact fields, active flag, timestamps. Required fields TBD. |
-| `sales` | id, unique human-readable receipt/reference, status, sold_at, created_by user, currency, totals, payment summary as approved, timestamps. |
-| `sale_lines` | id, sale_id FK, product_id FK, quantity, unit price snapshot, discount/tax snapshots if approved, line total, product name/SKU snapshot. |
+| `sales` | `id`, unique `receipt_number`, unique `idempotency_key`, `request_hash`, `status`, `total_amount` (`NUMERIC(18,4)`), `payment_method` (`cash` or `mpesa`), `amount_tendered`, `change_given`, optional `payment_reference`/`notes`, `sold_by` FK, `sold_at`. |
+| `sale_lines` | `id`, `sale_id` FK, `line_number`, `product_id` FK, immutable product snapshots (`product_internal_reference`, `product_name`, `product_description`, `manufacturer_part_number`), `unit_price` (`NUMERIC(18,4)`), `quantity` (`NUMERIC(18,4)`), `line_total` (`NUMERIC(18,4)`). |
 | `purchases` | id, supplier_id FK, external reference, status, created/received timestamps, created_by, currency and cost totals as approved. |
 | `purchase_lines` | id, purchase_id FK, product_id FK, ordered/received quantity, unit cost and product snapshot. Fields depend on partial-receive decision. |
 | `stock_movements` | id, product_id FK, event type, signed quantity delta, source document type/id or typed nullable FKs, occurred_at, actor, reason, idempotency/reference key. Append-only after posting. |
