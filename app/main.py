@@ -35,7 +35,11 @@ from app.catalogue_routes import router as catalogue_router
 from app.inventory_routes import inventory_router, suppliers_router
 from app.reports_routes import dashboard_router, reports_router
 from app.sales_routes import sales_router
-from app.image_storage import LocalProductImageStorage
+from app.image_storage import (
+    LocalProductImageStorage,
+    ProductImageStorage,
+    R2ProductImageStorage,
+)
 from app.native_auth import router as native_auth_router
 from app.upload_limits import ProductImageBodyLimitMiddleware
 
@@ -59,6 +63,21 @@ def _same_origin(request: Request) -> bool:
     return host_matches and parsed.scheme == expected_scheme
 
 
+def _create_product_image_storage(app_settings: Settings) -> ProductImageStorage:
+    if app_settings.product_image_storage_backend == "r2":
+        return R2ProductImageStorage(
+            endpoint_url=app_settings.r2_endpoint_url or "",
+            bucket=app_settings.r2_bucket or "",
+            access_key_id=app_settings.r2_access_key_id or "",
+            secret_access_key=app_settings.r2_secret_access_key or "",
+            max_bytes=app_settings.product_image_max_bytes,
+        )
+    return LocalProductImageStorage(
+        app_settings.product_image_storage_path,
+        BASE_DIR / "static",
+    )
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     """Create an independently configurable application instance."""
     app_settings = settings or get_settings()
@@ -78,9 +97,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.state.settings = app_settings
     application.state.engine = engine
     application.state.session_factory = create_session_factory(engine)
-    application.state.product_image_storage = LocalProductImageStorage(
-        app_settings.product_image_storage_path, BASE_DIR / "static"
-    )
+    application.state.product_image_storage = _create_product_image_storage(app_settings)
     application.add_middleware(
         ProductImageBodyLimitMiddleware,
         max_image_bytes=app_settings.product_image_max_bytes,

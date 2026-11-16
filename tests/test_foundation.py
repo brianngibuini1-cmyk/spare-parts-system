@@ -75,10 +75,18 @@ def test_production_configuration_requires_explicit_postgres_url(monkeypatch):
 
 
 def test_production_configuration_keeps_https_and_secure_cookies_enforced():
+    r2_kwargs = {
+        "product_image_storage_backend": "r2",
+        "r2_endpoint_url": "https://account-id.r2.cloudflarestorage.com",
+        "r2_bucket": "bmm-private-images",
+        "r2_access_key_id": "dummy-access-key",
+        "r2_secret_access_key": "dummy-secret-key",
+    }
     settings = Settings(
         _env_file=None,
         environment="production",
         database_url="postgresql+psycopg://user:pass@localhost/shop",
+        **r2_kwargs,
     )
     assert settings.cookie_secure is True
     assert settings.native_https_required is True
@@ -88,6 +96,7 @@ def test_production_configuration_keeps_https_and_secure_cookies_enforced():
             environment="production",
             database_url="postgresql+psycopg://user:pass@localhost/shop",
             cookie_secure=False,
+            **r2_kwargs,
         )
 
 

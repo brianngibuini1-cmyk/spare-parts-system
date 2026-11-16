@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 from decimal import Decimal
 from pathlib import Path
@@ -25,7 +26,12 @@ from app.auth import (
     require_owner,
 )
 from app.database import get_session
-from app.image_storage import InvalidProductImage, ProductImageTooLarge, normalize_product_image
+from app.image_storage import (
+    InvalidProductImage,
+    ProductImageStorageError,
+    ProductImageTooLarge,
+    normalize_product_image,
+)
 from app.models import (
     AuthEvent,
     AuthSession,
@@ -37,6 +43,7 @@ from app.models import (
 )
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "templates"))
 MAX_PRICE = Decimal("99999999999999.9999")
 
@@ -392,7 +399,12 @@ def upload_product_image(
     storage = request.app.state.product_image_storage
     try:
         new_key = storage.save(normalized, extension)
-    except OSError as exc:
+    except (OSError, ProductImageStorageError) as exc:
+        logger.error(
+            "Product image upload failed; product_id=%s error_type=%s",
+            product.id,
+            type(exc).__name__,
+        )
         raise HTTPException(status_code=500, detail="Image storage is unavailable.") from exc
     old_key = product.image_key
     product.image_key = new_key
@@ -405,14 +417,24 @@ def upload_product_image(
         session.rollback()
         try:
             storage.delete(new_key)
-        except OSError:
-            pass
+        except (OSError, ProductImageStorageError) as cleanup_exc:
+            logger.warning(
+                "Failed to delete rolled-back product image; product_id=%s key=%s error_type=%s",
+                product.id,
+                new_key,
+                type(cleanup_exc).__name__,
+            )
         raise HTTPException(status_code=500, detail="Image could not be saved.") from exc
     if old_key:
         try:
             storage.delete(old_key)
-        except OSError:
-            pass
+        except (OSError, ProductImageStorageError) as cleanup_exc:
+            logger.warning(
+                "Failed to delete replaced product image; product_id=%s key=%s error_type=%s",
+                product.id,
+                old_key,
+                type(cleanup_exc).__name__,
+            )
     return _product_json(product, context)
 
 
@@ -428,8 +450,15 @@ def get_product_image(
         raise HTTPException(status_code=404, detail="Product image not found.")
     try:
         data = request.app.state.product_image_storage.load(product.image_key)
-    except (OSError, ValueError) as exc:
+    except ValueError as exc:
         raise HTTPException(status_code=404, detail="Product image not found.") from exc
+    except (OSError, ProductImageStorageError) as exc:
+        logger.error(
+            "Product image retrieval failed; product_id=%s error_type=%s",
+            product.id,
+            type(exc).__name__,
+        )
+        raise HTTPException(status_code=500, detail="Image storage is unavailable.") from exc
     if data is None:
         raise HTTPException(status_code=404, detail="Product image not found.")
     extension = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}[product.image_media_type]

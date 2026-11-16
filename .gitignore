@@ -24,3 +24,6 @@ var/product-images/
 
 # Python packaging metadata
 *.egg-info/
+
+# Local staging images
+var/staging-product-images/

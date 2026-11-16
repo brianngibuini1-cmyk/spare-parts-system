@@ -5,6 +5,7 @@ description = "BMM Auto Motors cross-platform application with a FastAPI backend
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "alembic==1.15.2",
+    "boto3==1.44.3",
     "fastapi==0.115.12",
     "jinja2==3.1.6",
     "psycopg[binary]==3.2.6",
