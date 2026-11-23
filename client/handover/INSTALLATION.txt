@@ -1,0 +1,32 @@
+﻿BMM AUTO MOTORS
+Windows Installation Guide
+
+SYSTEM REQUIREMENTS
+- Windows 10 or Windows 11, 64-bit.
+- Active internet connection.
+- Valid application account provided by the business owner.
+
+INSTALLATION
+1. Copy BMM-Auto-Motors-Setup.exe to the Windows computer.
+2. Verify the installer checksum against SHA256.txt.
+3. Open the installer and follow the installation wizard.
+4. Launch BMM Auto Motors from the Start Menu.
+5. Sign in using the account provided by the business owner.
+
+CHECKSUM VERIFICATION
+Open PowerShell in the folder containing the installer and run:
+
+Get-FileHash .\BMM-Auto-Motors-Setup.exe -Algorithm SHA256
+
+Compare the resulting hash with SHA256.txt. They must match.
+
+IMPORTANT
+- Keep login credentials private.
+- An internet connection is required to communicate with the application server.
+- Do not delete application data when troubleshooting.
+- Contact the application administrator if you encounter an error.
+- Windows 10 installation must be verified on the target computer before production acceptance.
+
+Application version: 0.1.0
+Architecture: x64
+Distribution: Private installer

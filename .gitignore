@@ -27,3 +27,10 @@ var/product-images/
 
 # Local staging images
 var/staging-product-images/
+
+# Windows installer release artifacts
+/client/installer-output/
+/client/handover/*.exe
+
+# Temporary icon backup
+/client/windows/runner/resources/app_icon.backup.ico
